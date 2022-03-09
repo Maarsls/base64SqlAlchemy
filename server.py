@@ -43,8 +43,10 @@ class BinaryWithMetadata(Base):
 
 class BinaryWithMetadataREST(Resource):
     def get(self, id):
-        infos = BinaryWithMetadata.query.get(id)
-        return jsonify(infos)
+        info = BinaryWithMetadata.query.get(id)
+        if info is None:
+            return jsonify({'message': 'object with id %d does not exist' % id})
+        return jsonify(info)
 
     def put(self, id):
         d = request.get_json(force=True)
@@ -57,7 +59,13 @@ class BinaryWithMetadataREST(Resource):
         print(info.id)
         return jsonify(info)
     
-    
+    def delete(self, id):
+        info = BinaryWithMetadata.query.get(id)
+        if info is None:
+            return jsonify({'message': 'object with id %d does not exist' % id})
+        db_session.delete(info)
+        db_session.flush()
+        return jsonify({'message': '%d deleted' % id})
 
 
 
