@@ -57,6 +57,15 @@ class BinaryWithMetadataREST(Resource):
         db_session.flush()
         print(info.id)
         return jsonify(info)
+    
+    def delete(self, id):
+        info = BinaryWithMetadata.query.get(id)
+        if info is None:
+            return jsonify({'message': 'object with id %d does not exist' % id})
+        db_session.delete(info)
+        db_session.flush()
+        return jsonify({'message': '%d deleted' % id})
+
 
 
 api.add_resource(BinaryWithMetadataREST, '/img_meta/<int:id>')
