@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_restful import Resource, Api
-from sqlalchemy import Column, Integer, Text, Float, DateTime, create_engine
+from sqlalchemy import Column, Integer, Text, Float, DateTime, create_engine, or_
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import func
@@ -71,6 +71,10 @@ class BinaryWithMetadataREST(Resource):
 
 api.add_resource(BinaryWithMetadataREST, '/img_meta/<int:id>')
 
+@app.route('/search/<string:query>')
+def getQuestionsRoute(query):
+    res = BinaryWithMetadata.query.filter(or_(BinaryWithMetadata.name.contains(query), BinaryWithMetadata.desc.contains(query))).all()
+    return jsonify(res)
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
