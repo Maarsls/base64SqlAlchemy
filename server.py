@@ -24,7 +24,7 @@ api = Api(app)  # Die Flask API
 
 @dataclass  # Diese ermoeglicht das Schreiben als JSON mit jsonify
 class BinaryWithMetadata(Base):
-    __tablename__ = 'binary_with_metadata'  # Abbildung auf diese Tabelle
+    __tablename__ = 'binary_with_metadata'
     id: int
     name: str
     ext: str
