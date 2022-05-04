@@ -1,12 +1,18 @@
-from flask import Flask, request, jsonify, send_from_directory
+from operator import add
+from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from sqlalchemy import Column, Integer, Text, Float, DateTime, create_engine, or_
+from sqlalchemy import Column, Integer, Text, DateTime, create_engine, or_
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import func
 from flask_restful import Resource, Api
 from dataclasses import dataclass
 import json
+import boto3
+
+rekognition = boto3.client('rekognition')
+textract = boto3.client('textract')
+
 
 app = Flask(__name__)  # Die Flask-Anwendung
 api = Api(app)  # Die Flask API
@@ -16,7 +22,8 @@ metadata = Base.metadata
 
 # Welche Datenbank wird verwendet
 engine = create_engine('sqlite:///database.db', echo=True)
-db_session = scoped_session(sessionmaker(autocommit=True, autoflush=True, bind=engine))
+db_session = scoped_session(sessionmaker(
+    autocommit=True, autoflush=True, bind=engine))
 # Dadurch hat jedes Base - Objekt (also auch ein GeoInfo) ein Attribut query für Abfragen
 Base.query = db_session.query_property()
 app = Flask(__name__)  # Die Flask-Anwendung
@@ -32,6 +39,7 @@ class BinaryWithMetadata(Base):
     data: str
     desc: str
     when: str
+    additional_info: str
 
     id = Column(Integer, primary_key=True)
     name = Column(Text)
@@ -39,6 +47,7 @@ class BinaryWithMetadata(Base):
     data = Column(Text)
     desc = Column(Text)
     when = Column(DateTime, default=func.now())
+    additional_info = Column(Text)
 
 
 class BinaryWithMetadataREST(Resource):
@@ -51,14 +60,36 @@ class BinaryWithMetadataREST(Resource):
     def put(self, id):
         d = request.get_json(force=True)
         print(d)
+
+        rekognition_response = rekognition.detect_faces(
+
+            Image={
+                'Bytes': d['data']
+            },
+            Attributes=["ALL", "DEFAULT"]
+
+        )
+        textract_response = textract.detect_document_text(
+            Document={'Bytes': d['data']})
+
+        additionalString = ''
+        additionalString += 'Anzahl Gesichter: ' + \
+            str(len(rekognition_response['FaceDetails'])) + '\n'
+
+        additionalString += 'Gefundener Text: '
+
+        for item in textract_response["Blocks"]:
+            if item["BlockType"] == "LINE":
+                additionalString += item["Text"]
+        additionalString += "\n"
         info = BinaryWithMetadata(
-            name=d['name'], ext=d['ext'], data=d['data'], desc=d['desc'])
+            name=d['name'], ext=d['ext'], data=d['data'], desc=d['desc'], additional_info=additionalString)
 
         db_session.add(info)
         db_session.flush()
         print(info.id)
         return jsonify(info)
-    
+
     def delete(self, id):
         info = BinaryWithMetadata.query.get(id)
         if info is None:
@@ -68,13 +99,15 @@ class BinaryWithMetadataREST(Resource):
         return jsonify({'message': '%d deleted' % id})
 
 
-
 api.add_resource(BinaryWithMetadataREST, '/img_meta/<int:id>')
+
 
 @app.route('/search/<string:query>')
 def getQuestionsRoute(query):
-    res = BinaryWithMetadata.query.filter(or_(BinaryWithMetadata.name.contains(query), BinaryWithMetadata.desc.contains(query))).all()
+    res = BinaryWithMetadata.query.filter(or_(BinaryWithMetadata.name.contains(
+        query), BinaryWithMetadata.desc.contains(query))).all()
     return jsonify(res)
+
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
