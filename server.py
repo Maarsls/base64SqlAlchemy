@@ -22,9 +22,7 @@ metadata = Base.metadata
 
 # Welche Datenbank wird verwendet
 engine = create_engine('sqlite:///database.db', echo=True)
-db_session = scoped_session(sessionmaker(
-    autocommit=True, autoflush=True, bind=engine))
-# Dadurch hat jedes Base - Objekt (also auch ein GeoInfo) ein Attribut query für Abfragen
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base.query = db_session.query_property()
 app = Flask(__name__)  # Die Flask-Anwendung
 api = Api(app)  # Die Flask API
@@ -32,7 +30,7 @@ api = Api(app)  # Die Flask API
 
 @dataclass  # Diese ermoeglicht das Schreiben als JSON mit jsonify
 class BinaryWithMetadata(Base):
-    __tablename__ = 'binary_with_metadata'  # Abbildung auf diese Tabelle
+    __tablename__ = 'binary_with_metadata'
     id: int
     name: str
     ext: str
